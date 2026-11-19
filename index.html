@@ -235,48 +235,34 @@ const STATES = {
 const DEFS = [
   {id:'zap', name:'Zap', role:'Agente de WhatsApp', color:'#29d17d',
    quick:['Resumir as conversas de ontem','Levantar os recebimentos do período','Listar quem ficou sem resposta'],
-   about:'Você resume conversas de WhatsApp e levanta recebimentos (nome, data, hora, valor e referente).'},
-  {id:'fin', name:'Fin', role:'Gerente financeiro', color:'#ffb84d',
+   about:'Você resume as conversas recebidas no WhatsApp num período e levanta os recebimentos (nome, data, hora, valor e referente).'},
+  {id:'fin', name:'Fin', role:'Agente financeiro', color:'#ffb84d',
    quick:['Revisar o que vence amanhã','Conciliar as movimentações importadas','Resumo do caixa da semana'],
-   about:'Você cuida de movimentações bancárias, lançamentos, baixas e conciliações.'},
-  {id:'rita', name:'Rita', role:'Pesquisadora', color:'#38e1ff',
-   quick:['Pesquisar fornecedores e comparar preços','Resumir este documento','Levantar prós e contras'],
-   about:'Você pesquisa, compara opções e resume documentos.'},
-  {id:'leo', name:'Léo', role:'Redator', color:'#ff6fb1',
-   quick:['Escrever um post curto','Revisar este texto','Criar 3 títulos alternativos'],
-   about:'Você escreve e revisa textos, posts e e-mails.'},
-  {id:'dara', name:'Dara', role:'Analista de dados', color:'#8b6cff',
-   quick:['Montar o relatório semanal','Analisar esta planilha','Apontar o que mudou na semana'],
-   about:'Você analisa dados, monta relatórios e indicadores.'},
-  {id:'nina', name:'Nina', role:'Agenda e e-mails', color:'#ff7a45',
-   quick:['Organizar minha agenda de amanhã','Redigir resposta a este e-mail','Preparar lembretes de cobrança'],
-   about:'Você organiza agenda, compromissos, e-mails e lembretes.'}
+   about:'Você é o gerente financeiro: revisa movimentações bancárias, faz lançamentos, baixas e conciliações seguindo as regras de fornecedores do usuário.'},
+  {id:'dara', name:'Dara', role:'Analista de relatórios', color:'#8b6cff',
+   quick:['Montar o relatório financeiro da semana','Faturamento e saídas por grupo','Quanto as saídas pesam no faturamento?'],
+   about:'Você é a analista de relatórios: monta o relatório financeiro (faturamento, saídas por grupo, percentual do faturamento e empréstimos) a partir dos lançamentos que o usuário enviar, e explica o resultado de forma curta. Toda sexta às 17h é o dia do relatório semanal.'}
 ];
-const KEY = 'sala-agentes.v1';
+const KEY = 'sala-agentes.v2';
 const lsGet = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch(e){ return null; } };
 let saveT;
 const save = () => { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }, 300); };
 
 function seed(){
   const t = day0(), I = n => isoDate(addDays(t,n));
+  const fri = (5 - t.getDay() + 7) % 7;
   const ag = (id,state,task,progress) => ({id,state,task,progress});
   return {
     agents:{
       zap:ag('zap','working','Resumindo as conversas de ontem e levantando recebimentos',62),
       fin:ag('fin','working','Conciliando o extrato bancário importado',35),
-      rita:ag('rita','idle','',0),
-      leo:ag('leo','waiting','Preciso do briefing do post da semana',0),
-      dara:ag('dara','working','Fechando o relatório semanal',80),
-      nina:ag('nina','idle','',0)
+      dara:ag('dara','waiting','Preciso dos lançamentos da semana para o relatório',0)
     },
     msgs:{},
     agenda:[
       ['zap',0,'09:00','Resumir conversas de ontem'],['zap',1,'08:30','Levantar recebimentos do WhatsApp'],['zap',3,'14:00','Revisar conversas da semana'],
       ['fin',0,'10:30','Conciliar extrato bancário'],['fin',1,'09:00','Revisar contas a pagar'],['fin',1,'16:00','Dar baixa nos recebimentos'],['fin',4,'11:00','Fechar fluxo de caixa semanal'],
-      ['rita',1,'10:00','Pesquisar fornecedores'],['rita',2,'15:00','Comparativo de preços'],
-      ['leo',0,'15:00','Rascunho do post da semana'],['leo',1,'11:00','Revisar textos do site'],['leo',5,'10:00','Newsletter'],
-      ['dara',0,'17:00','Relatório semanal'],['dara',1,'13:30','Painel de indicadores'],['dara',6,'09:00','Fechamento mensal de dados'],
-      ['nina',1,'08:00','Organizar agenda e e-mails'],['nina',1,'14:30','Confirmar reuniões'],['nina',3,'09:30','Lembretes de cobrança']
+      ['dara',fri,'17:00','Relatório financeiro semanal (sexta)'],['dara',1,'13:30','Conferir saídas por grupo'],['dara',6,'09:00','Revisar empréstimos do mês']
     ].map(([agentId,o,time,title]) => ({id:uid(),agentId,date:I(o),time,title,done:false})),
     ui:{range:'amanha',filter:'all'}
   };
@@ -589,7 +575,7 @@ function initWorld(){
   sign.position.set(0,5.6,-8.95); scene.add(sign);
 
   /* mesas */
-  const DESK_Z = -6.2, deskX = [-12.5,-7.5,-2.5,2.5,7.5,12.5];
+  const DESK_Z = -6.2, deskX = [-7,0,7];
   const screens = [];
   const woodM = mat(0x1b2552,{roughness:.4,metalness:.3}), legM = mat(0x0a0f26,{metalness:.6});
   DEFS.forEach((d,i) => {
@@ -659,7 +645,7 @@ function initWorld(){
   const ring2 = new THREE.Mesh(new THREE.TorusGeometry(.45,.04,8,40), new THREE.MeshBasicMaterial({color:0x8b6cff})); ring2.position.y = 1.7; holo.add(ring2);
   scene.add(holo); stationLabels.push({t:'🌐 Mesa holográfica', p:new V3(3,2.9,7.5)});
   // plantas
-  [[-16,-6],[16,-6],[16,12],[-16,12]].forEach(([x,z]) => { const p = new THREE.Group(); p.position.set(x,0,z); p.add(box(.7,.7,.7,mat(0x20295a),0,.35,0)); const l = new THREE.Mesh(new THREE.IcosahedronGeometry(.8,0), mat(0x1fa86a,{roughness:.8})); l.position.y = 1.3; l.castShadow = true; p.add(l); scene.add(p); });
+  [[-14,-6],[14,-6],[16,12],[-16,12]].forEach(([x,z]) => { const p = new THREE.Group(); p.position.set(x,0,z); p.add(box(.7,.7,.7,mat(0x20295a),0,.35,0)); const l = new THREE.Mesh(new THREE.IcosahedronGeometry(.8,0), mat(0x1fa86a,{roughness:.8})); l.position.y = 1.3; l.castShadow = true; p.add(l); scene.add(p); });
 
   const STATIONS = [
     {id:'cafe', slots:[{x:10.4,z:6.2,face:[10.4,4.8],pose:'drink'},{x:12.2,z:6.2,face:[12.2,4.8],pose:'drink'}]},
@@ -820,7 +806,7 @@ function initWorld(){
   }
 
   /* câmera orbital */
-  const home = {az:.28, pol:1.0, rad:32, target:new V3(0,1,2.5)};
+  const home = {az:.28, pol:1.0, rad:27, target:new V3(0,1,2.5)};
   const cam = {az:home.az, pol:home.pol, rad:home.rad, target:home.target.clone()};
   const goal = {az:home.az, pol:home.pol, rad:home.rad, target:home.target.clone()};
   let fit = 1, following = null;
